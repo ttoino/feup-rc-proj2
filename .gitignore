@@ -1,0 +1,6 @@
+bin/
+docs/
+penguin-received.gif
+*.o
+*.swp
+.vscode
