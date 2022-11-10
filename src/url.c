@@ -52,7 +52,7 @@ int parse_url(const char *url, char *username, char *password, char *host,
                 state = READ_PORT;
             else if (sscanf(url, "%255[^:@/]/%n", host, &n) && n > 0)
                 state = READ_PATH;
-            else if (sscanf(url, "%255[^:@/]", host) == 1)
+            else if (sscanf(url, "%255[^:@/]%n", host, &n) && n > 0)
                 state = END;
             else
                 return -1;
@@ -61,10 +61,10 @@ int parse_url(const char *url, char *username, char *password, char *host,
             break;
 
         case READ_PORT:
-            if (sscanf(url, "%hd/%n", port, &n) && n > 0) {
+            if (sscanf(url, "%hu/%n", port, &n) && n > 0) {
                 url += n;
                 state = READ_PATH;
-            } else if (sscanf(url, "%hd%n", port, &n) && n > 0) {
+            } else if (sscanf(url, "%hu%n", port, &n) && n > 0) {
                 url += n;
                 state = END;
             } else {
