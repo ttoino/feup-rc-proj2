@@ -4,6 +4,8 @@
 #include <stdint.h>
 
 int parse_url(const char *url, char *username, char *password, char *host,
-              uint16_t *port, char *path);
+              char *port, char *path);
+
+void set_default_url_parts(char *username, char *port);
 
 #endif // _URL_H_

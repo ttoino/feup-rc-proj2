@@ -1,4 +1,5 @@
 #include "url.h"
+#include "log.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -14,7 +15,7 @@ typedef enum {
 } AddressState;
 
 int parse_url(const char *url, char *username, char *password, char *host,
-              uint16_t *port, char *path) {
+              char *port, char *path) {
     AddressState state = START;
 
     while (state != END) {
@@ -61,16 +62,14 @@ int parse_url(const char *url, char *username, char *password, char *host,
             break;
 
         case READ_PORT:
-            if (sscanf(url, "%hu/%n", port, &n) && n > 0) {
-                url += n;
+            if (sscanf(url, "%5[0123456789]/%n", port, &n) && n > 0)
                 state = READ_PATH;
-            } else if (sscanf(url, "%hu%n", port, &n) && n > 0) {
-                url += n;
+            else if (sscanf(url, "%5[0123456789]%n", port, &n) && n > 0)
                 state = END;
-            } else {
+            else
                 return -1;
-            }
 
+            url += n;
             break;
 
         case READ_PATH:
@@ -89,4 +88,11 @@ int parse_url(const char *url, char *username, char *password, char *host,
         return -1;
 
     return 0;
+}
+
+void set_default_url_parts(char *username, char *port) {
+    if (username[0] == '\0')
+        strcpy(username, "anonymous");
+    if (port[0] == '\0')
+        strcpy(port, "21");
 }
