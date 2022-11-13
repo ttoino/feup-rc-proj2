@@ -14,7 +14,7 @@
  *
  * @param prefix the prefix to use when logging this message
  */
-#define _LOG(prefix, ...) printf("[" prefix "]: " __VA_ARGS__)
+#define _LOG(prefix, ...) printf("[" prefix "] " __VA_ARGS__)
 
 #if _DEBUG >= 3
 /**
@@ -51,6 +51,6 @@
 /**
  * Prints the formatted message with level ERROR
  */
-#define ERROR(...) fprintf(stderr, "[ERROR]: " __VA_ARGS__)
+#define ERROR(...) fprintf(stderr, "[ERROR] " __VA_ARGS__)
 
 #endif // _LOG_H_
