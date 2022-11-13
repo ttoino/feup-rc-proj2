@@ -4,6 +4,7 @@
 
 #include <arpa/inet.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <memory.h>
 #include <netdb.h>
 #include <poll.h>
@@ -91,7 +92,7 @@ int get_code(int fd) {
     return code;
 }
 
-int login(int fd, char *username, char *password) {
+int login(int fd, const char *username, const char *password) {
     char buf[512];
     int len, code;
 
@@ -134,9 +135,67 @@ int login(int fd, char *username, char *password) {
     return 0;
 }
 
+int get_passive(int fd, char *host, char *port) {
+    char cmd[] = "pasv\n", buf[256];
+    if (send(fd, cmd, sizeof(cmd), 0) < 0) {
+        ERROR("Error sending user command: %s\n", strerror(errno));
+        return -1;
+    }
+
+    recvall(fd, buf, 256);
+    int code = -1;
+    uint8_t h1, h2, h3, h4, p1, p2;
+    sscanf(buf, "%d %*[^(](%hhu,%hhu,%hhu,%hhu,%hhu,%hhu)\n", &code, &h1, &h2,
+           &h3, &h4, &p1, &p2);
+    if (code != 227) {
+        ERROR("Could not enter passive mode\n");
+        return -1;
+    }
+
+    sprintf(host, "%hhu.%hhu.%hhu.%hhu", h1, h2, h3, h4);
+    sprintf(port, "%hu", p1 * 256 + p2);
+    INFO("Entering passive mode (%s:%s)\n", host, port);
+    return 0;
+}
+
+int start_transfer(int fd, const char *path) {
+    char buf[512];
+    int len;
+
+    snprintf(buf, 512, "retr %s\n%n", path, &len);
+    LOG("Sending command %s", buf);
+    if (send(fd, buf, len, 0) < 0) {
+        ERROR("Error sending retr command: %s\n", strerror(errno));
+        return -1;
+    }
+
+    int code = get_code(fd);
+    if (code != 150) {
+        ERROR("Could not retrieve file\n");
+        return -1;
+    }
+
+    LOG("Retrieving file\n");
+    return 0;
+}
+
+int retrieve(int fd) {
+    int out_fd = open("received", O_CREAT);
+    uint8_t buf[256];
+    ssize_t bytes_read;
+
+    while ((bytes_read = recv(fd, buf, 256, 0)) >= 0) {
+        write(out_fd, buf, bytes_read);
+        LOG("Written %lu bytes to file\n", bytes_read);
+    }
+
+    return 0;
+}
+
 int run(const char *url) {
     char username[256] = "anonymous", password[256] = "", host[256] = "",
-         port[6] = "21", path[256] = "";
+         port[6] = "21", path[256] = "", passive_host[INET_ADDRSTRLEN],
+         passive_port[6];
 
     if (parse_url(url, username, password, host, port, path) < 0) {
         ERROR("Invalid url!\n");
@@ -157,6 +216,18 @@ int run(const char *url) {
 
     if (login(fd, username, password) < 0)
         return -1;
+
+    if (get_passive(fd, passive_host, passive_port) < 0)
+        return -1;
+
+    int passive_fd = connect_to(passive_host, passive_port);
+    if (passive_fd < 0)
+        return -1;
+
+    if (start_transfer(fd, path) < 0)
+        return -1;
+
+    retrieve(passive_fd);
 
     return 0;
 }
