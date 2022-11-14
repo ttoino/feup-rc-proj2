@@ -46,7 +46,7 @@ int connect_to(char *host, char *port) {
         LOG("Trying %s\n", addr_str);
         int fd = socket(addr->ai_family, addr->ai_socktype, addr->ai_protocol);
         if (fd < 0 || connect(fd, addr->ai_addr, addr->ai_addrlen) < 0) {
-            LOG("Error connecting to address %s: %s\n", addr_str,
+            LOG("Error connecting to address '%s': %s\n", addr_str,
                 strerror(errno));
         } else {
             INFO("Connected to address %s\n", addr_str);
@@ -56,6 +56,7 @@ int connect_to(char *host, char *port) {
     }
 
     ERROR("Could not connect to any address!\n");
+    freeaddrinfo(res);
     return -1;
 }
 
@@ -138,7 +139,7 @@ int login(int fd, const char *username, const char *password) {
 int get_passive(int fd, char *host, char *port) {
     char cmd[] = "pasv\n", buf[256];
     if (send(fd, cmd, sizeof(cmd), 0) < 0) {
-        ERROR("Error sending user command: %s\n", strerror(errno));
+        ERROR("Error sending 'pasv' command: %s\n", strerror(errno));
         return -1;
     }
 
@@ -148,7 +149,7 @@ int get_passive(int fd, char *host, char *port) {
     sscanf(buf, "%d %*[^(](%hhu,%hhu,%hhu,%hhu,%hhu,%hhu)\n", &code, &h1, &h2,
            &h3, &h4, &p1, &p2);
     if (code != 227) {
-        ERROR("Could not enter passive mode\n");
+        ERROR("Could not enter passive mode, code=%d\n", code);
         return -1;
     }
 
@@ -162,10 +163,13 @@ int start_transfer(int fd, const char *path) {
     char buf[512];
     int len;
 
+    send(fd, "\n", 1, 0);
+    get_code(fd);
+
     snprintf(buf, 512, "retr %s\n%n", path, &len);
-    LOG("Sending command %s", buf);
+    LOG("Sending command '%s'", buf);
     if (send(fd, buf, len, 0) < 0) {
-        ERROR("Error sending retr command: %s\n", strerror(errno));
+        ERROR("Error sending 'retr' command: %s\n", strerror(errno));
         return -1;
     }
 
@@ -180,14 +184,17 @@ int start_transfer(int fd, const char *path) {
 }
 
 int retrieve(int fd) {
-    int out_fd = open("received", O_CREAT);
+    int out_fd = creat("received", 0744);
     uint8_t buf[256];
     ssize_t bytes_read;
 
-    while ((bytes_read = recv(fd, buf, 256, 0)) >= 0) {
+    while ((bytes_read = recv(fd, buf, 256, 0)) > 0) {
         write(out_fd, buf, bytes_read);
         LOG("Written %lu bytes to file\n", bytes_read);
+	LOG("%.*s\n", bytes_read, buf);
     }
+
+    close(out_fd);
 
     return 0;
 }
@@ -198,7 +205,7 @@ int run(const char *url) {
          passive_port[6];
 
     if (parse_url(url, username, password, host, port, path) < 0) {
-        ERROR("Invalid url!\n");
+        ERROR("Invalid url: %s!\n", url);
         return -1;
     }
 
@@ -228,6 +235,9 @@ int run(const char *url) {
         return -1;
 
     retrieve(passive_fd);
+
+    close(fd);
+    close(passive_fd);
 
     return 0;
 }
