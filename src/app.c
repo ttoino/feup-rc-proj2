@@ -18,7 +18,7 @@ int get_address(char *host, char *port, struct addrinfo **res) {
     struct addrinfo hints;
 
     memset(&hints, 0, sizeof(hints));
-    hints.ai_family = PF_UNSPEC;
+    hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
 
     return getaddrinfo(host, port, &hints, res);
@@ -76,6 +76,7 @@ ssize_t recvall(int fd, char *buf, size_t len) {
         return -1;
     }
 
+    buf[bytes_read_total] = '\0';
     if (bytes_read_total > 0)
         LOG("%s", buf);
 
@@ -138,8 +139,8 @@ int login(int fd, const char *username, const char *password) {
 
 int get_passive(int fd, char *host, char *port) {
     char cmd[] = "pasv\n", buf[256];
-    if (send(fd, cmd, sizeof(cmd), 0) < 0) {
-        ERROR("Error sending 'pasv' command: %s\n", strerror(errno));
+    if (send(fd, cmd, sizeof(cmd) - 1, 0) < 0) {
+        ERROR("Error sending pasv command: %s\n", strerror(errno));
         return -1;
     }
 
@@ -149,7 +150,7 @@ int get_passive(int fd, char *host, char *port) {
     sscanf(buf, "%d %*[^(](%hhu,%hhu,%hhu,%hhu,%hhu,%hhu)\n", &code, &h1, &h2,
            &h3, &h4, &p1, &p2);
     if (code != 227) {
-        ERROR("Could not enter passive mode, code=%d\n", code);
+        ERROR("Could not enter passive mode\n", code);
         return -1;
     }
 
@@ -163,18 +164,14 @@ int start_transfer(int fd, const char *path) {
     char buf[512];
     int len;
 
-    send(fd, "\n", 1, 0);
-    get_code(fd);
-
     snprintf(buf, 512, "retr %s\n%n", path, &len);
-    LOG("Sending command '%s'", buf);
     if (send(fd, buf, len, 0) < 0) {
         ERROR("Error sending 'retr' command: %s\n", strerror(errno));
         return -1;
     }
 
     int code = get_code(fd);
-    if (code != 150) {
+    if (code != 150 && code != 226) {
         ERROR("Could not retrieve file\n");
         return -1;
     }
@@ -191,7 +188,7 @@ int retrieve(int fd) {
     while ((bytes_read = recv(fd, buf, 256, 0)) > 0) {
         write(out_fd, buf, bytes_read);
         LOG("Written %lu bytes to file\n", bytes_read);
-	LOG("%.*s\n", bytes_read, buf);
+        LOG("%.*s\n", bytes_read, buf);
     }
 
     close(out_fd);
