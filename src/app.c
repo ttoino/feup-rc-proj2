@@ -150,7 +150,7 @@ int get_passive(int fd, char *host, char *port) {
     sscanf(buf, "%d %*[^(](%hhu,%hhu,%hhu,%hhu,%hhu,%hhu)\n", &code, &h1, &h2,
            &h3, &h4, &p1, &p2);
     if (code != 227) {
-        ERROR("Could not enter passive mode\n", code);
+        ERROR("Could not enter passive mode\n");
         return -1;
     }
 
@@ -188,7 +188,7 @@ int retrieve(int fd) {
     while ((bytes_read = recv(fd, buf, 256, 0)) > 0) {
         write(out_fd, buf, bytes_read);
         LOG("Written %lu bytes to file\n", bytes_read);
-        LOG("%.*s\n", bytes_read, buf);
+        LOG("%.*s\n", (int)bytes_read, buf);
     }
 
     close(out_fd);
