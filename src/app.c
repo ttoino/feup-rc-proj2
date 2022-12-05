@@ -14,6 +14,9 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+unsigned long file_size = 0L;
+unsigned long current_progress = 0L;
+
 int get_address(char *host, char *port, struct addrinfo **res) {
     struct addrinfo hints;
 
@@ -91,6 +94,14 @@ int get_code(int fd) {
         return -1;
 
     sscanf(buf, "%d", &code);
+
+    int n = 0;
+    unsigned long temp;
+    if (sscanf(buf, " %*[^(](%lu bytes)%n", &temp, &n) && n > 0) {
+        file_size = temp;
+        INFO("File size: %lu bytes\n", file_size);
+    }
+
     return code;
 }
 
@@ -180,20 +191,27 @@ int start_transfer(int fd, const char *path) {
     return 0;
 }
 
-int retrieve(int fd) {
-    int out_fd = creat("received", 0744);
-    uint8_t buf[256];
+int retrieve(int fd, char* local_file_name) {
+    int out_fd = creat(local_file_name, 0744);
+    uint8_t buf[BUFFER_SIZE];
     ssize_t bytes_read;
 
-    while ((bytes_read = recv(fd, buf, 256, 0)) > 0) {
-        write(out_fd, buf, bytes_read);
-        LOG("Written %lu bytes to file\n", bytes_read);
+    while ((bytes_read = recv(fd, buf, BUFFER_SIZE, 0)) > 0) {
+        ssize_t bytes_written = write(out_fd, buf, bytes_read);
+
+        current_progress += bytes_written;
+
+        INFO("Written %lu bytes (%lf%%) to file\n", bytes_written, (double)(current_progress * 100.0 / file_size));
         LOG("%.*s\n", (int)bytes_read, buf);
     }
 
     close(out_fd);
 
     return 0;
+}
+
+char* extract_filename(char* path) {
+    return strrchr(path, '/') + 1;
 }
 
 int run(const char *url) {
@@ -231,7 +249,9 @@ int run(const char *url) {
     if (start_transfer(fd, path) < 0)
         return -1;
 
-    retrieve(passive_fd);
+    char* file_name = extract_filename(path);
+
+    retrieve(passive_fd, file_name);
 
     close(fd);
     close(passive_fd);

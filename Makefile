@@ -28,7 +28,7 @@ $(BIN)/main: main.c $(SRC)/*.c
 
 .PHONY: run
 run: $(BIN)/main
-	./$(BIN)/main ftp://$(HOST)/$(FILE) 
+	./$(BIN)/main "ftp://$(HOST)/$(FILE)"
 
 docs: $(BIN)/main
 	doxygen Doxyfile
