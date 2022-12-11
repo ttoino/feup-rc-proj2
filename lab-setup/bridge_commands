@@ -1,0 +1,16 @@
+# this file is not updated.
+
+/system reset-configuration
+/interface bridge add name=bridge60
+/interface bridge add name=bridge61
+/interface bridge remove bridge
+/interface bridge port remove [find interface=etherXX]
+/interface bridge port remove [find interface=etherYY]
+/interface bridge port remove [find interface=etherWW]
+/interface bridge port remove [find interface=etherZZ]
+/interface bridge port remove [find interface=etherAA]
+/interface bridge port add bridge=bridge60 interface=etherXX
+/interface bridge port add bridge=bridge60 interface=etherYY
+/interface bridge port add bridge=bridge61 interface=etherWW
+/interface bridge port add bridge=bridge61 interface=etherZZ
+/interface bridge port add bridge=bridge61 interface=etherAA
