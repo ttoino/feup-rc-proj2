@@ -69,7 +69,7 @@ ssize_t recvall(int fd, char *buf, size_t len) {
     usleep(100000);
 
     while ((bytes_read = recv(fd, buf + bytes_read_total,
-                              len - bytes_read_total, MSG_DONTWAIT)) >= 0) {
+                              len - bytes_read_total, MSG_DONTWAIT)) > 0) {
         bytes_read_total += bytes_read;
         usleep(100000);
     }
@@ -207,6 +207,8 @@ int retrieve(int fd, char* local_file_name) {
 
     close(out_fd);
 
+    LOG("Transfer complete\n");
+
     return 0;
 }
 
@@ -232,28 +234,28 @@ int run(const char *url) {
     INFO("port: %s\n", port);
     INFO("path: %s\n", path);
 
-    int fd = connect_to(host, port);
-    if (fd < 0)
+    int control_fd = connect_to(host, port);
+    if (control_fd < 0)
         return -1;
 
-    if (login(fd, username, password) < 0)
+    if (login(control_fd, username, password) < 0)
         return -1;
 
-    if (get_passive(fd, passive_host, passive_port) < 0)
+    if (get_passive(control_fd, passive_host, passive_port) < 0)
         return -1;
 
     int passive_fd = connect_to(passive_host, passive_port);
     if (passive_fd < 0)
         return -1;
 
-    if (start_transfer(fd, path) < 0)
+    if (start_transfer(control_fd, path) < 0)
         return -1;
 
     char* file_name = extract_filename(path);
 
     retrieve(passive_fd, file_name);
 
-    close(fd);
+    close(control_fd);
     close(passive_fd);
 
     return 0;
