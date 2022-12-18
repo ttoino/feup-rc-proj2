@@ -125,37 +125,174 @@ After all these steps, the connection is closed and the program terminates.
 
 \subsection{Successful download}
 
-The log of a successful download is attached as annex;
+The log of a successful download is attached as annex.
 
 \section{Network Configuration and Analysis}
 
 The main purpose of this part of the project was to setup a small computer network to allow a computer that normally does not have internet access to download a file from a remote server using the FTP client developed in the first part of the project.
 
-This was accomplished by performing a series of small steps leading up the creation of the complete network, which consists of 2 "leaf" computers, 2 VLANs implemented on a Switch, a \nth{3} computer serving as a router between both VLANs and finally a commercial network router to provide internet access through the lab's own network.
+This was accomplished by performing a series of small steps leading up the creation of the complete network, which consists of 2 "leaf" computers, 2 sub-networks implemented on a Switch, a \nth{3} computer serving as a router between both subnets and finally a commercial network router to provide internet access through the lab's own network.
 
 All experiments were made on bench 6 of Lab 2.
 
-\subsection{Experiment 1}
+\subsection{Experiment I}
 
 \subsubsection{Network Architecture}
 
-At the end of the experiment, the network configuration should consist of tux63 and tux64 connected by a bridge (bridge0) through the MicroTik switch, as follows:
+At the end of the experiment, the network configuration should consist of tux63 and tux64 connected through the MicroTik switch, as follows:
 
 \includegraphics{experiment1}
-
+Figure 1: Network configuration for experiment I
 \subsubsection{Experiment Objectives}
+
+This experiment had the purpose of teaching how to make 2 separate machines communicate over a network.
+
 \subsubsection{Main Configuration Commands}
+
+\begin{code-bash}
+# tux3:
+root# ifconfig eth1 up
+root# ifconfig eth1 172.16.60.1/24
+
+# tux4:
+root# ifconfig eth0 up
+root# ifconfig eth0 172.16.60.254/24
+
+\end{code-bash}
+
+In this experiment, the computers were connected to the switch with no additional configuration needed (thus using the switch's "default" bridge).
+
+Note: due to a problem with the bench's tux3 ethernet sockets, tux3 had to use the \textit{eth1} interface and have the physical cable connected to the bench's \textit{E2} socket. This is the same for the remaining experiments.
 \subsubsection{Log analysis}
 
-\subsection{Experiment 2}
+The corresponding Wireshark log is included as an annex.
 
-\subsection{Experiment 3}
+In tux3 we issued a ping command to \textit{172.16.60.254}. Since tux3 does not know the MAC address of the machine with this IP address (and as such does not know where to send the ping requests) it first makes an ARP request to resolve the MAC address corresponding to the pinged IP address.
 
-\subsection{Experiment 4}
+ARP stands for Address Resolution Protocol, used by computers to associate an IP address with a MAC address in their respective "ARP tables", where all associations "IP Address - MAC Address" are stored for future use.
 
-\subsection{Experiment 5}
+In this case, tux3 (MAC address \textit{00:22:64:a7:32:ab}) sends a "broadcast" ARP packet to discover who has IP address \textit{172.16.60.254}: this can be identified in the underlying Ethernet frame that includes the packet (the "destination" field is \textit{ff:ff:ff:ff:ff:ff}).
+Upon receiving this broadcast packet, tux4 (MAC address \textit{00:21:5a:5a:75:bb}) sends a response to tux3 indicating that it has the IP address specified in the ARP request and returning its MAC address, which in turn is stored in tux3's "ARP table".
 
-\subsection{Experiment 6}
+After getting tux4's MAC address, tux3 continuously sends PING requests and tux4 sends PING responses, each containing the previously mentioned MAC and IP addresses.
+
+The type of packet sent in a frame can be differentiated using the 'type' field (bytes 13 and 14): IPv4 corresponds to type 0x0800, ARP corresponds to type 0x0806. ICMP packets are stored inside the IPv4 packet so they do not have a specific type code, even though the IPv4 packet itself has a field identifying the format of its data.
+The length of each received frame can be calculated on a per-type basis:
+\begin{itemize}
+    \item IPv4 packets have a field named Total Length that represents the length of the IPv4 packet and its contents and is stored at bytes 3 and 4 of the packet header. So the total frame length is the packet's total length plus the length of the ethernet frame header.
+    \item ARP packets themselves have a fixed length (in our experiments, and according to several online resources): always 28 bytes long. However, some padding can be added, making the frame length vary between 46 and 64 bytes (Wireshark omits the 4 CRC bytes included in the Ethernet frame and as such the lengths displayed vary between 42 and 60 bytes).
+\end{itemize}
+
+Besides the Ethernet interfaces present in both machines, there is also a "Loop-back" interface, which is a virtual network interface, in other words, it is implemented in software at the kernel level.
+The primary purpose of this interface is to check the validity of the installed "network stack", which is necessary for every other type of network communication.
+This is achieved by sending frames from a machine to itself: if either the frame's destination or source field is a loopback interface, the frame should not leave the current machine, instead being sent back up the network stack.
+Other purposes include routing packets from a client (browser, for example) to a server running on the same machine (because the packets do not leave the current machine).
+
+\subsection{Experiment II}
+
+\subsubsection{Network Architecture}
+
+At the end of the experiment, the network configuration should consist of tux63 and tux64 connected by a bridge (bridge0) and tux62 connected to a different bridge (bridge1) through the MicroTik switch, as follows:
+
+\includegraphics{experiment2}
+Figure 2: Network configuration for experiment II
+
+\subsubsection{Experiment Objectives}
+
+The purpose of this experiment is to teach us how to setup 2 different network domains on the same switch, and verify that no communication occurs between these domains by default.
+
+\subsubsection{Main Configuration Commands}
+
+\begin{code-bash}
+# These commands are performed after the configuration in experiment I
+
+# tux2
+root# ifconfig eth0 up
+root# ifconfig eth0 172.16.61.1/24
+
+# Switch, connected to through a serial cable
+/system reset-configuration
+
+/interface bridge add name=bridge60
+/interface bridge add name=bridge61
+
+# assuming tux2, tux3 and tux4 are connected to, respecitvely, switch sockets 10, 1 and 2:
+/interface bridge port remove [find interface=ether1]
+/interface bridge port remove [find interface=ether2]
+/interface bridge port remove [find interface=ether10]
+/interface bridge port add bridge=bridge60 interface=ether1
+/interface bridge port add bridge=bridge60 interface=ether2
+/interface bridge port add bridge=bridge61 interface=ether10
+\end{code-bash}
+
+\subsubsection{Log Analysis}
+
+The corresponding Wireshark logs are included as annexes.
+
+From the log analysis we can see that tux63 and tux64 can send and receive ping requests/responses from each other, since they are connected to the same bridge on the switch (bridge0).
+
+However tux62 is still unreachable from the 2 other machines.
+This hypothesis is backed by the capture logs taken from tux62: when pinging from tux63, both tux63 and tux64 show ICMP packets corresponding to PING requests/responses. However, tux62's logs never show any ICMP packets, indicating that this machine is not connected to either one of the other computers.
+2The same thing happens when sending ping broadcasts from tux63 and tux62: tux63 is connected to tux64 and vice-versa, while tux62 is disconnected from the other two.
+
+This also tells us that there are now 2 separate sub-networks operating through the switch. One way to confirm this is to verify the IP address in the 'sender' field in Ethernet frames sent from the 3 computers: tux64 and tux63 belong to the same network (172.16.60.0/24) while tux62 is connected to another network (172.16.61.0/24).
+
+\subsection{Experiment III}
+
+\subsubsection{Network Architecture}
+
+At the end of the experiment, the network configuration should consist of tux63 and tux64 connected by a bridge (bridge0) and tux62 and tux64 connected by a different bridge (bridge1) through the MicroTik switch, as follows:
+
+\includegraphics{experiment3}
+Figure 3: Network configuration for experiment III
+
+\subsubsection{Experiment Objectives}
+
+The purpose of this experiment is to turn tux64 into a router in order to allow communication between tux63 and tux62.
+
+\subsubsection{Main Configuration Commands}
+
+\begin{code-bash}
+# these commands are performed after the configuration in experiment II
+
+# Switch
+# these commands assume that tux64 is also wired to socket 11 of the switch
+/interface bridge port remove [find interface=ether11]
+/interface bridge port add bridge=bridge61 interface=ether11
+
+# tux4
+root# ifconfig eth1 up
+root# ifconfig eth1 172.16.61.253/24
+root# echo 1 > /proc/sys/net/ipv4/ip_forward
+root# echo 0 > /proc/sys/net/ipv4/icmp_echo_ignore_broadcast
+
+# tux3
+root# route add -net 172.16.61.0/24 gw 172.16.60.254
+
+# tux2
+root# route add -net 172.16.60.0/24 gw 172.16.61.253
+\end{code-bash}
+
+\subsubsection{Log Analysis}
+
+The corresponding Wireshark logs are included as annexes.
+
+After connecting tux4 to both sub-networks and configuring routes through tux4 in both tux3 and tux2, these can send PING requests/replies to each other, as can be seen in tux3's logs. This confirms that the network configuration is correct.
+
+If we inspect the routing tables in both tux3 and tux2 we can understand why this happens: tux4 (which is connected to both sub-networks) is the default gateway for both machines to access the sub-network they are not a part of.
+
+After deleting the ARP tables in tux4 and re-running the ping command, the 3 tuxes do not know how to reach each other (since they do not know each other's MAC addresses).
+Because of this, and because tux3 is pinging a machine on another network, tux3 sends an ARP broadcast to subnet 172.16.60.0/24 requesting the MAC address of its default gateway, in this case tux4.
+An ARP response is generated and sent to tux3 which in turn stores the MAC address of tux4 in its ARP table for later use (later tux4 does the inverse process to store the MAC address of tux3).
+Since the ping is going through tux4 into tux2, the same process happens in the second sub network, ending in tux4 storing the MAC addresses of both tux3 and tux2.
+
+After this, routing of ICMP packets occurs normally. It should be noted that these packets have the source field set to the IP address of tux3 and destination field set to the IP address of tux2. However, the underlying frame's destination address (when the packet is sent by either tux3 or tux2) is set to tux4's MAC address.
+This makes sense on a theoretical level since Ethernet frames are a Layer 2 data model and as such should be transmitted between connected nodes, where as IP packets are a layer 3 data model and store the transmission endpoints.
+\subsection{Experiment IV}
+
+\subsection{Experiment V}
+
+\subsection{Experiment VI}
 
 \section{Conclusions}
 

@@ -5,7 +5,7 @@
 # Parameters
 CC = gcc
 
-DEBUG_LEVEL=3
+DEBUG_LEVEL=2
 
 # _DEBUG is used to include internal logging of errors and general information. Levels go from 1 to 3, highest to lowest priority respectively
 # _PRINT_PACKET_DATA is used to print the packet data that is received by RX
@@ -15,9 +15,9 @@ SRC = src/
 INCLUDE = include/
 BIN = bin/
 
-HOST=ftp.up.pt
+HOST=rcom:rcom@netlab1.fe.up.pt
 
-FILE=pub/kodi/timestamp.txt
+FILE=files/crab.mp4
 
 # Targets
 .PHONY: all
