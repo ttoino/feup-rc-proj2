@@ -286,13 +286,84 @@ Because of this, and because tux3 is pinging a machine on another network, tux3 
 An ARP response is generated and sent to tux3 which in turn stores the MAC address of tux4 in its ARP table for later use (later tux4 does the inverse process to store the MAC address of tux3).
 Since the ping is going through tux4 into tux2, the same process happens in the second sub network, ending in tux4 storing the MAC addresses of both tux3 and tux2.
 
-After this, routing of ICMP packets occurs normally. It should be noted that these packets have the source field set to the IP address of tux3 and destination field set to the IP address of tux2. However, the underlying frame's destination address (when the packet is sent by either tux3 or tux2) is set to tux4's MAC address.
+After that, routing of ICMP packets occurs normally. It should be noted that these packets have the source field set to the IP address of tux3 and destination field set to the IP address of tux2. However, the underlying frame's destination address (when the packet is sent by either tux3 or tux2) is set to tux4's MAC address.
 This makes sense on a theoretical level since Ethernet frames are a Layer 2 data model and as such should be transmitted between connected nodes, where as IP packets are a layer 3 data model and store the transmission endpoints.
 \subsection{Experiment IV}
 
+\subsubsection{Network Architecture}
+
+At the end of the experiment, the network configuration should consist of tux63 and tux64 connected through the MicroTik switch, as follows:
+
+\includegraphics{experiment4}
+Figure 4: Network configuration for experiment IV
+\subsubsection{Experiment Objectives}
+
+The purpose of this experiment is to add internet connectivity to the developed network through a commercial router connected to the labs network.
+
+\subsubsection{Main Configuration Commands}
+
+\begin{code-bash}
+# these steps are performed after the ones described in experiment III    
+
+# these steps assume that the router is connected to the switch on socket 12
+# Switch
+/interface bridge port remove [find interface=ether12]
+/interface bridge port add bridge=bridge61 interface=ether12
+
+# Router
+/system reset-configuration
+/ip address add address=172.16.2.69/24 interface=ether1
+/ip address add address=172.16.61.254/24 interface=ether2
+/ip route add dst-address=0.0.0.0/0 gateway=172.16.2.254
+/ip route add dst-address=172.16.60.0/24 gateway=172.16.61.253
+
+# tux4
+root# route add default gw 172.16.61.254
+
+# tux3
+root# route add default gw 172.16.60.254
+
+# tux2
+# in the beginning of the experiment
+root# route del default gw 172.16.61.254
+# in the middle of the experiment
+root# route add default gw 172.16.61.254
+
+\end{code-bash}
+
+\subsubsection{Log Analysis}
+
+The corresponding Wireshark logs are included as annexes.
+
+After deleting tux2's route through tux64, tux62 can only access the 172.16.60.0/24 sub-network through its default router, in this case the bench's router.
+This can be confirmed by analyzing the capture logs taken from tux62: the IPv4 packets have the addresses of tux62 an tux63 but the Ethernet frames have different MAC addresses, belonging to the router and tux62.
+Besides this, there were 2 ARP unicast requests made by tux62 and tux64 to resolve the MAC addresses of, respectively, the router and tux62.
+
+All of this tells us that the ping request followed the following path: tux62 -> router -> tux64 -> tux63 -> tux64 -> tux62.
+
+Afterwards, tux63 made pings to the labs router. These requests succeeded when NAT was enabled on the router and failed when it wasn't. This is due to the fact that the router was responsible for translating addresses outside the sub-networks to valid addresses on the sub-networks using NAT (Network Address Translation).
+
+NAT is the mechanism through which a router machine (commercial router or not, in our case tux64 could be responsible for performing NAT if correctly configured) translates an incoming IP address into an outgoing IP address belonging to a sub-network. This can be used to avoid address collisions with external addresses (from a sub-network's "point of view").
+
 \subsection{Experiment V}
 
+\subsubsection{Network Architecture}
+
+\subsubsection{Experiment Objectives}
+
+\subsubsection{Main Configuration Commands}
+
+\subsubsection{Log Analysis}
+
 \subsection{Experiment VI}
+
+\subsubsection{Network Architecture}
+
+\subsubsection{Experiment Objectives}
+
+\subsubsection{Main Configuration Commands}
+
+\subsubsection{Log Analysis}
 
 \section{Conclusions}
 
