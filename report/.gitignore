@@ -1,5 +1,2 @@
-*
-!*.tex
-!*.tsv
-# !*.pdf
-!.gitignore
+report.*
+!report.tex

@@ -349,23 +349,59 @@ NAT is the mechanism through which a router machine (commercial router or not, i
 
 \subsubsection{Network Architecture}
 
+Since this experiment does not add any node to the network being developed, the architecture of the network in this experiment is the same as in the previous one.
+
 \subsubsection{Experiment Objectives}
+
+The purpose of this experiment is to allow us to ping host names from tux63 by taking advantage of a Domain Name System.
 
 \subsubsection{Main Configuration Commands}
 
+\begin{code-bash}
+# these steps are performed after the ones described in experiment IPv4
+
+# tux2
+root# echo 'nameserver 172.16.2.1' > /etc/resolv.conf
+
+# tux3
+root# echo 'nameserver 172.16.2.1' > /etc/resolv.conf
+
+\end{code-bash}
+
 \subsubsection{Log Analysis}
+
+The corresponding Wireshark logs are included as annexes.
+
+In this experiment tux62 pinged \textit{google.com}. Since this is not a valid IP address, the computer needs to know what IP address corresponds to this host. To do that, a DNS is used.
+
+DNS stands for Domain Name System and is basically a mapping from host/domain names and valid IP addresses.
+
+When pinging \textit{google.com}, the computer first performs a DNS lookup to the specified nameserver. This nameserver is defined by adding an entry to the \textit{/etc/resolv.conf} file. This file is responsible for specifying up to 3 IP addresses of nameservers, i.e., servers with DNS capabilities.
+
+The DNS lookup generates 2 types of packets: queries and query responses. Both have fields in common but query responses have an additional "Answers" field. These packets transport the number of queries made and the number of typed responses, along with each query/response itself: a query stores each requested host, the length of the host name, and finally the type and class of record. An answer holds the same information plus the requested address and its length in bytes.
+
+Once the IP address of the given host is retrieved, the ping can proceed as usual.
+
+This statements are all corroborated by the Wireshark logs.
 
 \subsection{Experiment VI}
 
 \subsubsection{Network Architecture}
 
+Since this experiment does not add any node to the network being developed, the architecture of the network in this experiment is the same as in the previous one.
+
 \subsubsection{Experiment Objectives}
 
-\subsubsection{Main Configuration Commands}
+The purpose of this experiment is to allow us to verify the usage of the TCP protocol when using the FTP client developed for the first part of the project to download a file over the network developed for the second part of the project.
 
 \subsubsection{Log Analysis}
 
+The corresponding Wireshark logs are included as annexes.
+
+Note: these logs 
 \section{Conclusions}
+
+All of the project's goals were achieved - all experiments were executed with success, and the required download application is complete, well designed and working as intended; the analysis of the logs matches and reinforces what was discussed in class on a theoretical level and the development of the project as a whole was a solid practical learning experience.
 
 \onecolumn
 \appendix
@@ -376,3 +412,4 @@ NAT is the mechanism through which a router machine (commercial router or not, i
 \noindent In folder \lstinline{src/}.
 
 \end{document}
+
