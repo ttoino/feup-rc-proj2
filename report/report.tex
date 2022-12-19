@@ -9,9 +9,7 @@
 \usepackage{siunitx}
 \usepackage{graphicx}
 \graphicspath{ {./resources/} }
-\usepackage{pgfplots}
-\usepackage{pgfplotstable}
-\pgfplotsset{compat=1.18}
+\usepackage{float}
 
 \definecolor{dkgreen}{rgb}{0,0.6,0}
 \definecolor{gray}{rgb}{0.5,0.5,0.5}
@@ -21,6 +19,24 @@
 \makeatletter
 \lst@InstallKeywords k{types}{typestyle}\slshape{typestyle}{}ld
 \makeatother
+
+\lstset{
+    language=c,
+    aboveskip=3mm,
+    belowskip=3mm,
+    showstringspaces=false,
+    basicstyle={\small\ttfamily},
+    keywordstyle=\color{blue},
+    commentstyle=\color{dkgreen},
+    stringstyle=\color{mauve},
+    typestyle=\color{orange},
+    breaklines=true,
+    breakatwhitespace=true,
+    moretypes={
+        LLConnection, LLConnectionParams, LLRole, Frame, ByteVector,
+        uint8_t, size_t, ssize_t, bool, termios, timer_t
+    }
+}
 
 \lstnewenvironment{code-c}
 {
@@ -57,7 +73,8 @@
         stringstyle=\color{mauve},
         typestyle=\color{orange},
         breaklines=true,
-        breakatwhitespace=true
+        breakatwhitespace=true,
+        moretypes={ root\# }
     }
 }
 {}
@@ -88,13 +105,13 @@ where the \textit{URL} path is:
 ftp://[auth@]domain_plus_path
 
 having:
-    auth = <username>[:<password>]
-    domain_plus_path = <host>[:<port>]/<path>
+auth = <username>[:<password>]
+domain_plus_path = <host>[:<port>]/<path>
 \end{code-bash}
 
 This allowed us to learn things such as:
 \begin{itemize}
-    \item UNIX utilities for handling \textit{URL}s like \textit{getaddrinfo()};
+    \item UNIX utilities for handling \textit{URL}s like \lstinline{getaddrinfo()};
     \item Searching, reading and interpreting RFCs, like the one that describes de FTP protocol;
     \item UNIX utilities to communicate with remote services like sockets;
     \item how to develop a simple FTP client in C;
@@ -104,9 +121,10 @@ This allowed us to learn things such as:
 \subsection{Architecture of the download application}
 
 The download application's flow consists of a series of steps, as follows:
+
 \begin{enumerate}
-    \item Parsing the \textit{URL} string given as the argument to the program to extract the various fragments that make up the \textit{URL} such as the host name or the path of the file to download.
-    \item Connecting to the supplied host on the specified port (defaults to 21, the standard FTP control port).
+    \item Parsing the \textit{URL} string given as the argument to the program to extract the various fragments that make it up, such as the username, password, host, port, and path.
+    \item Connecting to the supplied host on the specified port (defaulting to 21, the standard FTP control port).
     \item Entering passive mode and receiving the data connection's host and port information.
     \item Connecting to the data connection's host and port.
     \item Signaling that the remote server should start the transfer of the file specified in the \textit{path} portion of the \textit{URL} string.
@@ -115,15 +133,15 @@ The download application's flow consists of a series of steps, as follows:
 \end{enumerate}
 
 Network communication is mediated by TCP sockets.
-Making use of the custom \textit{URL} parser and \textit{getaddrinfo()}, the FTP server's IP and control port are obtained (the control port defaults to 21 as per the FTP protocol standard).
+Making use of the custom \textit{URL} parser and \lstinline{getaddrinfo()}, the FTP server's IP and control port are obtained (defaulting to 21 as per the FTP standard).
 
 A TCP connection is established and the program starts sending commands through the control connection. All lines that are/will be sent back by the server are parsed and the given response code is extracted: if the code does not match what is expected, the program terminates with a status code of -1.
 
-The program performs a login against the remote server (if no username is given in the \textit{URL} string then an anonymous login is attempted).
+The program performs a login against the remote server. If no username is given in the \textit{URL} string then an anonymous login is attempted.
 
 Next, passive mode is entered: in case of success the server responds with \textbf{227 Entering Passive Mode (h1,h2,h3,h4,p1,p2)}, where \textbf{h1} through \textbf{h4} are the host's IP address bytes from highest to lowest and \textbf{p1} and \textbf{p2} are, respectively, the high byte and low byte of the port to connect to.
 
-After a data connection is established, the \textit{retr} command is sent and afterwards the program starts reading buffers of data from the data connection to a file with the same name as the one being downloaded.
+After a data connection is established, the \lstinline{retr} command is sent and afterwards the program starts reading buffers of data from the data connection to a file with the same name as the one being downloaded.
 
 After all these steps, the connection is closed and the program terminates.
 
@@ -145,8 +163,12 @@ All experiments were made on bench 6 of Lab 2.
 
 At the end of the experiment, the network configuration should consist of tux63 and tux64 connected through the MicroTik switch, as follows:
 
-\includegraphics{experiment1}
-Figure 1: Network configuration for experiment I
+\begin{figure}[H]
+    \centering
+    \includegraphics[scale=0.5]{experiment1}
+    \caption{Network configuration for experiment I}
+\end{figure}
+
 \subsubsection{Experiment Objectives}
 
 This experiment had the purpose of teaching how to make 2 separate machines communicate over a network.
@@ -155,42 +177,49 @@ This experiment had the purpose of teaching how to make 2 separate machines comm
 
 \begin{code-bash}
 # tux3:
-root# ifconfig eth1 up
-root# ifconfig eth1 172.16.60.1/24
+ifconfig eth1 up
+ifconfig eth1 172.16.60.1/24
 
 # tux4:
-root# ifconfig eth0 up
-root# ifconfig eth0 172.16.60.254/24
+ifconfig eth0 up
+ifconfig eth0 172.16.60.254/24
 
 \end{code-bash}
 
-In this experiment, the computers were connected to the switch with no additional configuration needed (thus using the switch's "default" bridge).
+In this experiment, the computers were connected to the switch with no additional configuration needed (using the switch's default bridge).
 
-Note: due to a problem with the bench's tux3 ethernet sockets, tux3 had to use the \textit{eth1} interface and have the physical cable connected to the bench's \textit{E2} socket. This is the same for the remaining experiments.
+Note: due to a problem with the bench's tux3 ethernet ports, tux3 had to use the \lstinline{eth1} interface and have the physical cable connected to the bench's \lstinline{E2} port. This is the same for the remaining experiments.
+
 \subsubsection{Log analysis}
 
 The corresponding Wireshark log is included as an annex.
 
-In tux3 we issued a ping command to \textit{172.16.60.254}. Since tux3 does not know the MAC address of the machine with this IP address (and as such does not know where to send the ping requests) it first makes an ARP request to resolve the MAC address corresponding to the pinged IP address.
+In tux3 we issued a ping command to \textit{172.16.60.254}.
+Since tux3 does not know the MAC address of the machine with this IP address, and as such does not know where to send the ping requests, it first makes an ARP request to resolve the MAC address corresponding to the pinged IP address.
 
-ARP stands for Address Resolution Protocol, used by computers to associate an IP address with a MAC address in their respective "ARP tables", where all associations "IP Address - MAC Address" are stored for future use.
+ARP stands for Address Resolution Protocol, used by computers to associate an IP address with a MAC address in their respective ARP tables, where all associations "IP Address - MAC Address" are stored for future use.
 
-In this case, tux3 (MAC address \textit{00:22:64:a7:32:ab}) sends a "broadcast" ARP packet to discover who has IP address \textit{172.16.60.254}: this can be identified in the underlying Ethernet frame that includes the packet (the "destination" field is \textit{ff:ff:ff:ff:ff:ff}).
-Upon receiving this broadcast packet, tux4 (MAC address \textit{00:21:5a:5a:75:bb}) sends a response to tux3 indicating that it has the IP address specified in the ARP request and returning its MAC address, which in turn is stored in tux3's "ARP table".
+In this case, tux3 , with MAC address \textit{00:22:64:a7:32:ab}, sends a broadcast ARP packet to discover who has IP address \textit{172.16.60.254}; this can be identified in the underlying Ethernet frame that includes the packet, as the "destination" field is \textit{ff:ff:ff:ff:ff:ff}.
+
+Upon receiving this broadcast packet, tux4, with MAC address \textit{00:21:5a:5a:75:bb}, sends a response to tux3 indicating that it has the IP address specified in the ARP request and returning its MAC address, which in turn is stored in tux3's ARP table.
 
 After getting tux4's MAC address, tux3 continuously sends PING requests and tux4 sends PING responses, each containing the previously mentioned MAC and IP addresses.
 
-The type of packet sent in a frame can be differentiated using the 'type' field (bytes 13 and 14): IPv4 corresponds to type 0x0800, ARP corresponds to type 0x0806. ICMP packets are stored inside the IPv4 packet so they do not have a specific type code, even though the IPv4 packet itself has a field identifying the format of its data.
+The type of packet sent in a frame can be differentiated using the 'type' field (bytes 13 and 14): IPv4 corresponds to type \lstinline{0x0800}, ARP corresponds to type \lstinline{0x0806}. ICMP packets are stored inside the IPv4 packet so they do not have a specific type code, even though the IPv4 packet itself has a field identifying the format of its data.
+
 The length of each received frame can be calculated on a per-type basis:
+
 \begin{itemize}
     \item IPv4 packets have a field named Total Length that represents the length of the IPv4 packet and its contents and is stored at bytes 3 and 4 of the packet header. So the total frame length is the packet's total length plus the length of the ethernet frame header.
     \item ARP packets themselves have a fixed length (in our experiments, and according to several online resources): always 28 bytes long. However, some padding can be added, making the frame length vary between 46 and 64 bytes (Wireshark omits the 4 CRC bytes included in the Ethernet frame and as such the lengths displayed vary between 42 and 60 bytes).
 \end{itemize}
 
 Besides the Ethernet interfaces present in both machines, there is also a "Loop-back" interface, which is a virtual network interface, in other words, it is implemented in software at the kernel level.
+
 The primary purpose of this interface is to check the validity of the installed "network stack", which is necessary for every other type of network communication.
 This is achieved by sending frames from a machine to itself: if either the frame's destination or source field is a loopback interface, the frame should not leave the current machine, instead being sent back up the network stack.
-Other purposes include routing packets from a client (browser, for example) to a server running on the same machine (because the packets do not leave the current machine).
+
+Other purposes include routing packets from a client (browser, for example) to a server running on the same machine.
 
 \subsection{Experiment II}
 
@@ -198,8 +227,11 @@ Other purposes include routing packets from a client (browser, for example) to a
 
 At the end of the experiment, the network configuration should consist of tux63 and tux64 connected by a bridge (bridge0) and tux62 connected to a different bridge (bridge1) through the MicroTik switch, as follows:
 
-\includegraphics{experiment2}
-Figure 2: Network configuration for experiment II
+\begin{figure}[H]
+    \centering
+    \includegraphics[scale=0.5]{experiment2}
+    \caption{Network configuration for experiment II}
+\end{figure}
 
 \subsubsection{Experiment Objectives}
 
@@ -211,8 +243,8 @@ The purpose of this experiment is to teach us how to setup 2 different network d
 # These commands are performed after the configuration in experiment I
 
 # tux2
-root# ifconfig eth0 up
-root# ifconfig eth0 172.16.61.1/24
+ifconfig eth0 up
+ifconfig eth0 172.16.61.1/24
 
 # Switch, connected to through a serial cable
 /system reset-configuration
@@ -220,7 +252,7 @@ root# ifconfig eth0 172.16.61.1/24
 /interface bridge add name=bridge60
 /interface bridge add name=bridge61
 
-# assuming tux2, tux3 and tux4 are connected to, respecitvely, switch sockets 10, 1 and 2:
+# assuming tux2, tux3 and tux4 are connected to, respectively, switch ports 10, 1 and 2:
 /interface bridge port remove [find interface=ether1]
 /interface bridge port remove [find interface=ether2]
 /interface bridge port remove [find interface=ether10]
@@ -237,7 +269,7 @@ From the log analysis we can see that tux63 and tux64 can send and receive ping 
 
 However tux62 is still unreachable from the 2 other machines.
 This hypothesis is backed by the capture logs taken from tux62: when pinging from tux63, both tux63 and tux64 show ICMP packets corresponding to PING requests/responses. However, tux62's logs never show any ICMP packets, indicating that this machine is not connected to either one of the other computers.
-2The same thing happens when sending ping broadcasts from tux63 and tux62: tux63 is connected to tux64 and vice-versa, while tux62 is disconnected from the other two.
+The same thing happens when sending ping broadcasts from tux63 and tux62: tux63 is connected to tux64 and vice-versa, while tux62 is disconnected from the other two.
 
 This also tells us that there are now 2 separate sub-networks operating through the switch. One way to confirm this is to verify the IP address in the 'sender' field in Ethernet frames sent from the 3 computers: tux64 and tux63 belong to the same network (172.16.60.0/24) while tux62 is connected to another network (172.16.61.0/24).
 
@@ -247,8 +279,11 @@ This also tells us that there are now 2 separate sub-networks operating through 
 
 At the end of the experiment, the network configuration should consist of tux63 and tux64 connected by a bridge (bridge0) and tux62 and tux64 connected by a different bridge (bridge1) through the MicroTik switch, as follows:
 
-\includegraphics{experiment3}
-Figure 3: Network configuration for experiment III
+\begin{figure}[H]
+    \centering
+    \includegraphics[scale=0.5]{experiment3}
+    \caption{Network configuration for experiment III}
+\end{figure}
 
 \subsubsection{Experiment Objectives}
 
@@ -265,15 +300,15 @@ The purpose of this experiment is to turn tux64 into a router in order to allow 
 /interface bridge port add bridge=bridge61 interface=ether11
 
 # tux4
-root# ifconfig eth1 up
-root# ifconfig eth1 172.16.61.253/24
-root# echo 1 > /proc/sys/net/ipv4/ip_forward
+ifconfig eth1 up
+ifconfig eth1 172.16.61.253/24
+echo 1 > /proc/sys/net/ipv4/ip_forward
 
 # tux3
-root# route add -net 172.16.61.0/24 gw 172.16.60.254
+route add -net 172.16.61.0/24 gw 172.16.60.254
 
 # tux2
-root# route add -net 172.16.60.0/24 gw 172.16.61.253
+route add -net 172.16.60.0/24 gw 172.16.61.253
 \end{code-bash}
 
 \subsubsection{Log Analysis}
@@ -284,21 +319,26 @@ After connecting tux4 to both sub-networks and configuring routes through tux4 i
 
 If we inspect the routing tables in both tux3 and tux2 we can understand why this happens: tux4 (which is connected to both sub-networks) is the default gateway for both machines to access the sub-network they are not a part of.
 
-After deleting the ARP tables in tux4 and re-running the ping command, the 3 tuxes do not know how to reach each other (since they do not know each other's MAC addresses).
+After deleting the ARP tables in tux4 and re-running the ping command, the 3 tuxes do not know how to reach each other, as they do not know each other's MAC addresses.
 Because of this, and because tux3 is pinging a machine on another network, tux3 sends an ARP broadcast to subnet 172.16.60.0/24 requesting the MAC address of its default gateway, in this case tux4.
 An ARP response is generated and sent to tux3 which in turn stores the MAC address of tux4 in its ARP table for later use (later tux4 does the inverse process to store the MAC address of tux3).
 Since the ping is going through tux4 into tux2, the same process happens in the second sub network, ending in tux4 storing the MAC addresses of both tux3 and tux2.
 
 After that, routing of ICMP packets occurs normally. It should be noted that these packets have the source field set to the IP address of tux3 and destination field set to the IP address of tux2. However, the underlying frame's destination address (when the packet is sent by either tux3 or tux2) is set to tux4's MAC address.
 This makes sense on a theoretical level since Ethernet frames are a Layer 2 data model and as such should be transmitted between connected nodes, where as IP packets are a layer 3 data model and store the transmission endpoints.
+
 \subsection{Experiment IV}
 
 \subsubsection{Network Architecture}
 
-At the end of the experiment, the network configuration should consist of tux63 and tux64 connected through the MicroTik switch, as follows:
+At the end of the experiment, the network configuration should consist of tux63 and tux64 connected by a bridge (bridge0) and tux62, tux64 and the commercial MicroTik router, which is connected to the internet, connected by a different bridge (bridge1) through the MicroTik switch, as follows:
 
-\includegraphics{experiment4}
-Figure 4: Network configuration for experiment IV
+\begin{figure}[H]
+    \centering
+    \includegraphics[scale=1]{experiment4}
+    \caption{Network configuration for experiment IV}
+\end{figure}
+
 \subsubsection{Experiment Objectives}
 
 The purpose of this experiment is to add internet connectivity to the developed network through a commercial router connected to the labs network.
@@ -306,7 +346,7 @@ The purpose of this experiment is to add internet connectivity to the developed 
 \subsubsection{Main Configuration Commands}
 
 \begin{code-bash}
-# these steps are performed after the ones described in experiment III    
+# these steps are performed after the ones described in experiment III
 
 # these steps assume that the router is connected to the switch on socket 12
 # Switch
@@ -321,16 +361,16 @@ The purpose of this experiment is to add internet connectivity to the developed 
 /ip route add dst-address=172.16.60.0/24 gateway=172.16.61.253
 
 # tux4
-root# route add default gw 172.16.61.254
+route add default gw 172.16.61.254
 
 # tux3
-root# route add default gw 172.16.60.254
+route add default gw 172.16.60.254
 
 # tux2
 # in the beginning of the experiment
-root# route del default gw 172.16.61.254
+route del default gw 172.16.61.254
 # in the middle of the experiment
-root# route add default gw 172.16.61.254
+route add default gw 172.16.61.254
 
 \end{code-bash}
 
@@ -342,7 +382,7 @@ After deleting tux2's route through tux64, tux62 can only access the 172.16.60.0
 This can be confirmed by analyzing the capture logs taken from tux62: the IPv4 packets have the addresses of tux62 an tux63 but the Ethernet frames have different MAC addresses, belonging to the router and tux62.
 Besides this, there were 2 ARP unicast requests made by tux62 and tux64 to resolve the MAC addresses of, respectively, the router and tux62.
 
-All of this tells us that the ping request followed the following path: tux62 -> router -> tux64 -> tux63 -> tux64 -> tux62.
+All of this tells us that the ping request followed the following path: tux62 \textrightarrow\ router \textrightarrow\ tux64 \textrightarrow\ tux63 \textrightarrow\ tux64 \textrightarrow\ tux62.
 
 Afterwards, tux63 made pings to the labs router. These requests succeeded when NAT was enabled on the router and failed when it wasn't. This is due to the fact that the router was responsible for translating addresses outside the sub-networks to valid addresses on the sub-networks using NAT (Network Address Translation).
 
@@ -364,10 +404,10 @@ The purpose of this experiment is to allow us to ping host names from tux63 by t
 # these steps are performed after the ones described in experiment IPv4
 
 # tux2
-root# echo 'nameserver 172.16.2.1' > /etc/resolv.conf
+echo 'nameserver 172.16.2.1' > /etc/resolv.conf
 
 # tux3
-root# echo 'nameserver 172.16.2.1' > /etc/resolv.conf
+echo 'nameserver 172.16.2.1' > /etc/resolv.conf
 
 \end{code-bash}
 
@@ -377,7 +417,7 @@ The corresponding Wireshark logs are included as annexes.
 
 In this experiment tux62 pinged \textit{google.com}. Since this is not a valid IP address, the computer needs to know what IP address corresponds to this host. To do that, a DNS is used.
 
-DNS stands for Domain Name System and is basically a mapping from host/domain names and valid IP addresses.
+DNS stands for Domain Name System and is a mapping from host/domain names and valid IP addresses.
 
 When pinging \textit{google.com}, the computer first performs a DNS lookup to the specified nameserver. This nameserver is defined by adding an entry to the \textit{/etc/resolv.conf} file. This file is responsible for specifying up to 3 IP addresses of nameservers, i.e., servers with DNS capabilities.
 
@@ -385,13 +425,13 @@ The DNS lookup generates 2 types of packets: queries and query responses. Both h
 
 Once the IP address of the given host is retrieved, the ping can proceed as usual.
 
-This statements are all corroborated by the Wireshark logs.
+These statements are all corroborated by the Wireshark logs.
 
 \subsection{Experiment VI}
 
 \subsubsection{Network Architecture}
 
-Since this experiment does not add any node to the network being developed, the architecture of the network in this experiment is the same as in the previous one.
+Since this experiment does not add any node to the network being developed, the architecture of the network in this experiment is the same as in the previous two.
 
 \subsubsection{Experiment Objectives}
 
@@ -409,11 +449,11 @@ We can see that the connection open on port 21 is the control connection because
 
 This way, its clear that these 2 connections are in their "Connection establishment" phase, because of the TCP handshake that starts with each one (packets 2-4 for the control connection, packets 20-22 for the data connection).
 
-From analyzing the TCP packets, we can see some of the information that they store, such as fields called "Sequence Number" and "Sequence number (raw)". These fields play an important role in TCP's retransmission mechanism, which is one of the motives that makes TCP a reliable Transport Layer protocol. These sequence numbers are used to check the reception order of packets and figuring out errors in the transmission, such as connection timeouts or other factors that render a packet invalid. Besides the sequence numbers, TCP packets also contain, respectively, an "Aknowledgement Number" and "Aknowledgement Number (raw)" which are TCP's way of accepting a sequenced packet. If it were not accepted/acknowledged, the program automatically retransmits the same packet.
+From analyzing the TCP packets, we can see some of the information that they store, such as fields called "Sequence Number" and "Sequence number (raw)". These fields play an important role in TCP's retransmission mechanism, which is one of the motives that makes TCP a reliable Transport Layer protocol. These sequence numbers are used to check the reception order of packets and to figure out errors in the transmission, such as connection timeouts or other factors that render a packet invalid. Besides the sequence numbers, TCP packets also contain an "Acknowledgement Number" and "Acknowledgement Number (raw)" which are TCP's way of accepting a sequenced packet. If it was not accepted/acknowledged, the program automatically retransmits the same packet.
 
-However, a packet might not be sent after 3 retries, which can indicate a connection timeout or that the network is congestioned. In this cases, a "TCP Window Update" is sent indicating that the connection's congestion window, which in sum control how much data can be sent before receiving an ACK, should be reduced to reduce the congestioning effect on the connection.
+However, a packet might not be sent after 3 retries, which can indicate a connection timeout or that the network is congested. In these cases, a "TCP Window Update" is sent indicating that the connection's congestion window, which in sum control how much data can be sent before receiving an ACK, should be reduced to reduce the congestion effect on the connection.
 
-In addition to that, the throughput graphs show that there was an initial high throughput which suffered a quick drop and then decreased more slowly, until finally getting back-up. This makes sense because, following the experiment, the download/capture on tux3 occurred concurrently with a download in tux2, thus making the bench router have to distribute its load between the 2 machines. 
+In addition to that, the throughput graphs show that there was an initial high throughput which suffered a quick drop and then decreased more slowly, until finally getting back up. This makes sense because, following the experiment, the download/capture on tux3 occurred concurrently with a download in tux2, thus making the bench router have to distribute its load between the 2 machines.
 
 \section{Conclusions}
 
@@ -436,4 +476,3 @@ All of the project's goals were achieved - all experiments were executed with su
 \noindent In folder \lstinline{lab-setup/}.
 
 \end{document}
-
