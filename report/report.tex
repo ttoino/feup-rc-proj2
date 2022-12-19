@@ -85,7 +85,11 @@ download ftp://ftp.up.pt/pub/hello.txt
 where the \textit{URL} path is:
 
 \begin{code-bash}
-ftp://[<username>[:<password>]@]<host>[:<port>]/<path>
+ftp://[auth@]domain_plus_path
+
+having:
+    auth = <username>[:<password>]
+    domain_plus_path = <host>[:<port>]/<path>
 \end{code-bash}
 
 This allowed us to learn things such as:
@@ -125,7 +129,7 @@ After all these steps, the connection is closed and the program terminates.
 
 \subsection{Successful download}
 
-The log of a successful download is attached as annex.
+The log of a successful download is attached as annex to experiment 6.
 
 \section{Network Configuration and Analysis}
 
@@ -264,7 +268,6 @@ The purpose of this experiment is to turn tux64 into a router in order to allow 
 root# ifconfig eth1 up
 root# ifconfig eth1 172.16.61.253/24
 root# echo 1 > /proc/sys/net/ipv4/ip_forward
-root# echo 0 > /proc/sys/net/ipv4/icmp_echo_ignore_broadcast
 
 # tux3
 root# route add -net 172.16.61.0/24 gw 172.16.60.254
@@ -398,7 +401,20 @@ The purpose of this experiment is to allow us to verify the usage of the TCP pro
 
 The corresponding Wireshark logs are included as annexes.
 
-Note: these logs 
+Note: these logs refer IP and MAC addresses on bench 4 of lab 2 since that was the one available at the time of this capture. However, these values are not important for this analysis.
+
+From the logs, we can clearly see, in the first packets captured, the configuration of 2 different communication channels to host \textit{192.168.109.136}, one on port 21 (the default port for the FTP control connection) and one on port 47124 (belonging to the data connection in this case).
+
+We can see that the connection open on port 21 is the control connection because of the content of the FTP packets which contain FTP commands sent to the remote server.
+
+This way, its clear that these 2 connections are in their "Connection establishment" phase, because of the TCP handshake that starts with each one (packets 2-4 for the control connection, packets 20-22 for the data connection).
+
+From analyzing the TCP packets, we can see some of the information that they store, such as fields called "Sequence Number" and "Sequence number (raw)". These fields play an important role in TCP's retransmission mechanism, which is one of the motives that makes TCP a reliable Transport Layer protocol. These sequence numbers are used to check the reception order of packets and figuring out errors in the transmission, such as connection timeouts or other factors that render a packet invalid. Besides the sequence numbers, TCP packets also contain, respectively, an "Aknowledgement Number" and "Aknowledgement Number (raw)" which are TCP's way of accepting a sequenced packet. If it were not accepted/acknowledged, the program automatically retransmits the same packet.
+
+However, a packet might not be sent after 3 retries, which can indicate a connection timeout or that the network is congestioned. In this cases, a "TCP Window Update" is sent indicating that the connection's congestion window, which in sum control how much data can be sent before receiving an ACK, should be reduced to reduce the congestioning effect on the connection.
+
+In addition to that, the throughput graphs show that there was an initial high throughput which suffered a quick drop and then decreased more slowly, until finally getting back-up. This makes sense because, following the experiment, the download/capture on tux3 occurred concurrently with a download in tux2, thus making the bench router have to distribute its load between the 2 machines. 
+
 \section{Conclusions}
 
 All of the project's goals were achieved - all experiments were executed with success, and the required download application is complete, well designed and working as intended; the analysis of the logs matches and reinforces what was discussed in class on a theoretical level and the development of the project as a whole was a solid practical learning experience.
@@ -410,6 +426,14 @@ All of the project's goals were achieved - all experiments were executed with su
 \subsection{Code}
 
 \noindent In folder \lstinline{src/}.
+
+\subsection{Wireshark Captures}
+
+\noindent In folder \lstinline{captures/}.
+
+\subsection{Setup scripts}
+
+\noindent In folder \lstinline{lab-setup/}.
 
 \end{document}
 
